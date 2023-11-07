@@ -107,13 +107,13 @@ class SockBaseClient {
 
                     if (response.getResponseType() == Response.ResponseType.TASK) {
                         System.out.println("Task: " + response.getTask());
-                        System.out.println("Image: " + response.getImage());
+                        System.out.println("Image: \n " + response.getImage());
                     } else {
                         System.out.println("Unexpected response from the server.");
                     }
 
                     // Handle the game
-                    handleGame(in, out);
+                    handleGame(in, out, host, port);
                 } else if (choice.equals("3")) {
                     // Send the QUIT request to exit the game
                     Request quitRequest = Request.newBuilder()
@@ -146,9 +146,11 @@ class SockBaseClient {
         }
     }
 
-    private static void handleGame(InputStream in, OutputStream out) {
+    private static void handleGame(InputStream in, OutputStream out, String host, int port) {
         try {
-            while (true) {
+            boolean gameWon = false;
+
+            while (!gameWon) {
                 // Handle the game logic
                 // Send ANSWER request with the user's answer
                 System.out.print("Enter your answer: ");
@@ -173,13 +175,13 @@ class SockBaseClient {
                 } else if (response.getResponseType() == Response.ResponseType.WON) {
                     System.out.println("Congratulations! You've won.");
                     System.out.println("Winning Message: " + response.getMessage());
-                    break; // Exit the game loop
+                    gameWon = true; // Set gameWon to true
                 } else if (response.getResponseType() == Response.ResponseType.TASK) {
+                    System.out.println("Image: \n" + response.getImage());
                     System.out.println("Task: " + response.getTask());
-                    System.out.println("Image: " + response.getImage());
-                    if (response.getEval()) {
-                        System.out.println("You've completed the task!");
-                    }
+
+                    // Prompt the user for an answer and send it back to the server
+                    answerRequest.writeDelimitedTo(out);
                 } else {
                     System.out.println("Unknown response type.");
                 }
@@ -187,6 +189,9 @@ class SockBaseClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // If the game is won, return the user to the main menu
+        handleClientOperations(host, port);
     }
 
     private static void displayLeaderboard(List<Leader> leaderboard) {

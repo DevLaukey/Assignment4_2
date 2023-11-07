@@ -41,23 +41,25 @@ class SockBaseServer {
                     System.out.println("Got a connection and a name: " + name);
                     Response response = Response.newBuilder()
                             .setResponseType(Response.ResponseType.HELLO)
-                            .setHello("Hello " + name + " and welcome. \nWhat would you like to do? \n 1 - to see the leader board \n 2 - to enter a game")
+                            .setHello("Hello " + name + " and welcome.")
                             .build();
                     response.writeDelimitedTo(out);
                 } else if (op.getOperationType() == Request.OperationType.NEW) {
-                    game.newGame(); // starting a new game
+                    // Start a new game and send the first question to the client
+                    game.newGame();
 
-                    // adding the String of the game to
-                    Response response2 = Response.newBuilder()
+                    String question = "Name the 3rd prime number."; // Set the question
+                    Response response = Response.newBuilder()
                             .setResponseType(Response.ResponseType.TASK)
                             .setImage(game.getImage())
-                            .setTask("Great task goes here")
+                            .setTask(question)
                             .build();
+                    response.writeDelimitedTo(out);
 
-                    // On the client side you would receive a Response object which is the same as the one in line 70, so now you could read the fields
-                    System.out.println("Task: " + response2.getResponseType());
-                    System.out.println("Image: \n" + response2.getImage());
-                    System.out.println("Task: \n" + response2.getTask());
+                    System.out.println("Task: " + response.getResponseType());
+                    System.out.println("Image: \n" + response.getImage());
+                    System.out.println("Task: \n" + response.getTask());
+
                 } else if (op.getOperationType() == Request.OperationType.LEADERBOARD) {
                     System.out.println("IN LEADERBOARD");
                     Response.Builder res = Response.newBuilder()
@@ -82,18 +84,66 @@ class SockBaseServer {
 
                     Response response3 = res.build();
 
+                    response3.writeDelimitedTo(out);
+
                     for (Leader lead : response3.getLeaderboardList()) {
                         System.out.println(lead.getName() + ": " + lead.getWins());
                     }
                 } else if (op.getOperationType() == Request.OperationType.ANSWER) {
-                    // Handle ongoing communication based on user's answers
                     String answer = op.getAnswer();
+                    int userAnswer;
 
-                    // Check if the answer is correct
-                    if (game.checkAnswer(answer)) {
-                        // Handle game logic for correct answers
+                    try {
+                        userAnswer = Integer.parseInt(answer);
+                    } catch (NumberFormatException e) {
+                        // Invalid answer format
+                        Response invalidAnswerResponse = Response.newBuilder()
+                                .setResponseType(Response.ResponseType.TASK)
+                                .setImage(game.getImage())
+                                .setTask("Name the 3rd prime number.")
+                                .setEval(false)
+                                .setMessage("Invalid answer format. Please enter a number.")
+                                .build();
+                        invalidAnswerResponse.writeDelimitedTo(out);
+                        return;
+                    }
+
+                    int correctAnswer = 5; // The 3rd prime number (prime numbers: 2, 3, 5, ...)
+
+                    if (userAnswer == correctAnswer) {
+                        // If the answer is correct, replace one character in the hidden image
+                        String updatedImage = game.replaceOneFourthCharacters(15);
+
+                        // Check if the game is won
+                        if (game.getIdx() == game.getIdxMax()) {
+                            // The game is won
+                            Response wonResponse = Response.newBuilder()
+                                    .setResponseType(Response.ResponseType.WON)
+                                    .setImage(updatedImage)
+                                    .setMessage("Congratulations! You've won the game.")
+                                    .build();
+                            wonResponse.writeDelimitedTo(out);
+                        } else {
+                            // The game is not yet won, send TASK response with the updated image
+                            String newQuestion = "Name the 4th prime number."; // Set a new question
+                            Response taskResponse = Response.newBuilder()
+                                    .setResponseType(Response.ResponseType.TASK)
+                                    .setImage(updatedImage)
+                                    .setTask(newQuestion)
+                                    .setEval(true)
+                                    .build();
+                            taskResponse.writeDelimitedTo(out);
+                        }
                     } else {
-                        // Handle game logic for incorrect answers
+                        // Answer is incorrect, send a TASK response with the same image and the same question
+                        Response taskResponse = Response.newBuilder()
+                                .setResponseType(Response.ResponseType.TASK)
+                                .setImage(game.getImage())
+                                .setTask("Name the 3rd prime number.")
+                                .setEval(false)
+                                .setMessage("Incorrect answer. Try again.")
+                                .build();
+                        taskResponse.writeDelimitedTo(out);
                     }
                 } else if (op.getOperationType() == Request.OperationType.QUIT) {
                     // Handle QUIT request

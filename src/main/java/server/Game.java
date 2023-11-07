@@ -2,6 +2,10 @@ package server;
 
 import java.util.*; 
 import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+
 
 /**
  * Class: Game 
@@ -55,18 +59,21 @@ public class Game {
     public void newGame(){
         if (won) {
             idx = 0;
-            won = false; 
+            won = false;
             List<String> rows = new ArrayList<String>();
 
             try{
                 // loads one random image from list
-                Random rand = new Random(); 
+                Random rand = new Random();
                 col = 0;
                 int randInt = rand.nextInt(files.size());
                 File file = new File(
                         Game.class.getResource("/"+files.get(randInt)).getFile()
-                        );
+                );
+
+                System.out.println(file);
                 BufferedReader br = new BufferedReader(new FileReader(file));
+                System.out.println(br);
                 String line;
                 while ((line = br.readLine()) != null) {
                     if (col < line.length()) {
@@ -76,7 +83,7 @@ public class Game {
                 }
             }
             catch (Exception e){
-                System.out.println("File load error"); // extremely simple error handling, you can do better if you like. 
+                System.out.println("File load error"); // extremely simple error handling, you can do better if you like.
             }
 
             // this handles creating the orinal array and the hidden array in the correct size
@@ -131,6 +138,49 @@ public class Game {
         idx++;
         return(getImage());
     }
+    public String replaceMultipleCharacters(int times) {
+        StringBuilder updatedImage = new StringBuilder(getImage());
+
+        for (int i = 0; i < times; i++) {
+            if (idx < idxMax) {
+                int colNumber = idx % col;
+                int rowNumber = idx / col;
+                hidden[rowNumber][colNumber] = original[rowNumber][colNumber];
+                idx++;
+
+                // Update the corresponding characters in the updated image
+                updatedImage.setCharAt((rowNumber * (col + 1)) + colNumber, original[rowNumber][colNumber]);
+            } else {
+                break; // Stop if max replacements are reached
+            }
+        }
+
+        return updatedImage.toString();
+    }
+
+    public String replaceOneFourthCharacters(int maxReplacements) {
+        StringBuilder updatedImage = new StringBuilder(getImage());
+
+        int timesToReveal = Math.min(maxReplacements, idxMax / 4); // Calculate the number of times to reveal (one-fourth)
+
+        for (int i = 0; i < timesToReveal; i++) {
+            if (idx < idxMax) {
+                int colNumber = idx % col;
+                int rowNumber = idx / col;
+                hidden[rowNumber][colNumber] = original[rowNumber][colNumber];
+                idx++;
+
+                // Update the corresponding characters in the updated image
+                updatedImage.setCharAt((rowNumber * (col + 1)) + colNumber, original[rowNumber][colNumber]);
+            } else {
+                break; // Stop if max replacements are reached
+            }
+        }
+
+        return updatedImage.toString();
+    }
+
+
 
     public int getIdxMax() {
         return idxMax;
