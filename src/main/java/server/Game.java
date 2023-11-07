@@ -23,6 +23,7 @@ public class Game {
     private boolean won; // if the game is won or not
     private List<String> files = new ArrayList<String>(); // list of files, each file has one image
 
+    private Map<String, Integer> validAnswers = new HashMap<>();
 
     public Game(){
         // you can of course add more or change this setup completely. You are totally free to also use just Strings in your Server class instead of this class
@@ -35,13 +36,14 @@ public class Game {
         files.add("joke1.txt");
         files.add("joke2.txt");
         files.add("joke3.txt");
+        // Initialize the valid answers with sample mathematical questions and their answers
+        validAnswers.put("2+2", 4);
+        validAnswers.put("5-3", 2);
+        validAnswers.put("3*4", 12);
+        validAnswers.put("10/2", 5);
     }
 
-    /**
-     * Sets the won flag to true
-     * @param args Unused.
-     * @return Nothing.
-     */
+
     public void setWon(){
         won = true;
     }
@@ -144,5 +146,10 @@ public class Game {
 
     public void setIdx(int idx) {
         this.idx = idx;
+    }
+
+
+    public boolean checkAnswer(String answer) {
+        return validAnswers.containsValue(Integer.parseInt(answer));
     }
 }

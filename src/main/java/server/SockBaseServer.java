@@ -3,8 +3,6 @@ package server;
 import java.net.*;
 import java.io.*;
 import java.util.*;
-import java.lang.*;
-
 import proto.RequestProtos.*;
 import proto.ResponseProtos.*;
 
@@ -18,7 +16,6 @@ class SockBaseServer {
     int port = 9099; // default port
     Game game;
 
-
     public SockBaseServer(Socket sock, Game game){
         this.clientSocket = sock;
         this.game = game;
@@ -30,168 +27,144 @@ class SockBaseServer {
         }
     }
 
-    // Handles the communication right now it just accepts one input and then is done you should make sure the server stays open
-    // can handle multiple requests and does not crash when the server crashes
-    // you can use this server as based or start a new one if you prefer. 
     public void start() throws IOException {
         String name = "";
-
-
         System.out.println("Ready...");
         try {
-            // read the proto object and put into new objct
-            Request op = Request.parseDelimitedFrom(in);
-            String result = null;
+            while (true) {
+                Request op = Request.parseDelimitedFrom(in);
+                String result = null;
 
-            
+                if (op.getOperationType() == Request.OperationType.NAME) {
+                    name = op.getName();
+                    writeToLog(name, Message.CONNECT);
+                    System.out.println("Got a connection and a name: " + name);
+                    Response response = Response.newBuilder()
+                            .setResponseType(Response.ResponseType.HELLO)
+                            .setHello("Hello " + name + " and welcome. \nWhat would you like to do? \n 1 - to see the leader board \n 2 - to enter a game")
+                            .build();
+                    response.writeDelimitedTo(out);
+                } else if (op.getOperationType() == Request.OperationType.NEW) {
+                    game.newGame(); // starting a new game
 
-            // if the operation is NAME (so the beginning then say there is a commention and greet the client)
-            if (op.getOperationType() == Request.OperationType.NAME) {
-                // get name from proto object
-            name = op.getName();
+                    // adding the String of the game to
+                    Response response2 = Response.newBuilder()
+                            .setResponseType(Response.ResponseType.TASK)
+                            .setImage(game.getImage())
+                            .setTask("Great task goes here")
+                            .build();
 
-            // writing a connect message to the log with name and CONNENCT
-            writeToLog(name, Message.CONNECT);
-                System.out.println("Got a connection and a name: " + name);
-                Response response = Response.newBuilder()
-                        .setResponseType(Response.ResponseType.HELLO)
-                        .setHello("Hello " + name + " and welcome. \nWhat would you like to do? \n 1 - to see the leader board \n 2 - to enter a game")
-                        .build();
-                response.writeDelimitedTo(out);
+                    // On the client side you would receive a Response object which is the same as the one in line 70, so now you could read the fields
+                    System.out.println("Task: " + response2.getResponseType());
+                    System.out.println("Image: \n" + response2.getImage());
+                    System.out.println("Task: \n" + response2.getTask());
+                } else if (op.getOperationType() == Request.OperationType.LEADERBOARD) {
+                    System.out.println("IN LEADERBOARD");
+                    Response.Builder res = Response.newBuilder()
+                            .setResponseType(Response.ResponseType.LEADERBOARD);
+
+                    // building a leader entry
+                    Leader leader = Leader.newBuilder()
+                            .setName("name")
+                            .setWins(0)
+                            .setLogins(0)
+                            .build();
+
+                    // building a leader entry
+                    Leader leader2 = Leader.newBuilder()
+                            .setName("name2")
+                            .setWins(1)
+                            .setLogins(1)
+                            .build();
+
+                    res.addLeaderboard(leader);
+                    res.addLeaderboard(leader2);
+
+                    Response response3 = res.build();
+
+                    for (Leader lead : response3.getLeaderboardList()) {
+                        System.out.println(lead.getName() + ": " + lead.getWins());
+                    }
+                } else if (op.getOperationType() == Request.OperationType.ANSWER) {
+                    // Handle ongoing communication based on user's answers
+                    String answer = op.getAnswer();
+
+                    // Check if the answer is correct
+                    if (game.checkAnswer(answer)) {
+                        // Handle game logic for correct answers
+                    } else {
+                        // Handle game logic for incorrect answers
+                    }
+                } else if (op.getOperationType() == Request.OperationType.QUIT) {
+                    // Handle QUIT request
+                    // Exit the while loop to close the connection
+                    break;
+                }
             }
-
-            // Example how to start a new game and how to build a response with the image which you could then send to the server
-            // LINE 67-108 are just an example for Protobuf and how to work with the differnt types. They DO NOT
-            // belong into this code. 
-            game.newGame(); // starting a new game
-
-            // adding the String of the game to 
-            Response response2 = Response.newBuilder()
-                .setResponseType(Response.ResponseType.TASK)
-                .setImage(game.getImage())
-                .setTask("Great task goes here")
-                .build();
-
-            // On the client side you would receive a Response object which is the same as the one in line 70, so now you could read the fields
-            System.out.println("Task: " + response2.getResponseType());
-            System.out.println("Image: \n" + response2.getImage());
-            System.out.println("Task: \n" + response2.getTask());
-
-            // Creating Leader entry and Leader response
-            Response.Builder res = Response.newBuilder()
-                .setResponseType(Response.ResponseType.LEADERBOARD);
-
-            // building a leader entry
-            Leader leader = Leader.newBuilder()
-                .setName("name")
-                .setWins(0)
-                .setLogins(0)
-                .build();
-
-            // building a leader entry
-            Leader leader2 = Leader.newBuilder()
-                .setName("name2")
-                .setWins(1)
-                .setLogins(1)
-                .build();
-
-            res.addLeaderboard(leader);
-            res.addLeaderboard(leader2);
-
-            Response response3 = res.build();
-
-            for (Leader lead: response3.getLeaderboardList()){
-                System.out.println(lead.getName() + ": " + lead.getWins());
-            }
-
         } catch (Exception ex) {
             ex.printStackTrace();
         } finally {
-            if (out != null)  out.close();
-            if (in != null)   in.close();
-            if (clientSocket != null) clientSocket.close();
+            try {
+                if (out != null)
+                    out.close();
+                if (in != null)
+                    in.close();
+                if (clientSocket != null)
+                    clientSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
-    /**
-     * Replaces num characters in the image. I used it to turn more than one x when the task is fulfilled
-     * @param num -- number of x to be turned
-     * @return String of the new hidden image
-     */
-    public String replace(int num){
-        for (int i = 0; i < num; i++){
-            if (game.getIdx()< game.getIdxMax())
-                game.replaceOneCharacter();
-        }
-        return game.getImage();
-    }
+//    private boolean checkAnswer(String answer) {
+//        try {
+//            int ans = Integer.parseInt(answer);
+//            return ans == 4; // Check if the answer is correct (e.g., 2 + 2 = 4)
+//        } catch (NumberFormatException e) {
+//            return false; // Invalid answer
+//        }
+//    }
 
-
-    /**
-     * Writing a new entry to our log
-     * @param name - Name of the person logging in
-     * @param message - type Message from Protobuf which is the message to be written in the log (e.g. Connect) 
-     * @return String of the new hidden image
-     */
-    public static void writeToLog(String name, Message message){
+    public static void writeToLog(String name, Message message) {
         try {
-            // read old log file 
             Logs.Builder logs = readLogFile();
-
-            // get current time and data
             Date date = java.util.Calendar.getInstance().getTime();
-
-            // we are writing a new log entry to our log
-            // add a new log entry to the log list of the Protobuf object
-            logs.addLog(date.toString() + ": " +  name + " - " + message);
+            logs.addLog(date.toString() + ": " + name + " - " + message);
 
             // open log file
             FileOutputStream output = new FileOutputStream(logFilename);
             Logs logsObj = logs.build();
 
-            // This is only to show how you can iterate through a Logs object which is a protobuf object
-            // which has a repeated field "log"
-
-            for (String log: logsObj.getLogList()){
-
-                System.out.println(log);
-            }
-
-            // write to log file
+            // Write to log file
             logsObj.writeTo(output);
-        }catch(Exception e){
+        } catch (Exception e) {
             System.out.println("Issue while trying to save");
         }
     }
 
-    /**
-     * Reading the current log file
-     * @return Logs.Builder a builder of a logs entry from protobuf
-     */
-    public static Logs.Builder readLogFile() throws Exception{
+    public static Logs.Builder readLogFile() throws Exception {
         Logs.Builder logs = Logs.newBuilder();
 
         try {
-            // just read the file and put what is in it into the logs object
+            // Read the file and put its content into the logs object
             return logs.mergeFrom(new FileInputStream(logFilename));
         } catch (FileNotFoundException e) {
-            System.out.println(logFilename + ": File not found.  Creating a new file.");
+            System.out.println(logFilename + ": File not found. Creating a new file.");
             return logs;
         }
     }
 
-
-    public static void main (String args[]) throws Exception {
+    public static void main(String[] args) {
         Game game = new Game();
 
         if (args.length != 2) {
-            System.out.println("Expected arguments: <port(int)> <delay(int)>");
+            System.out.println("Expected arguments: <port(int)> <delay(int>");
             System.exit(1);
         }
-        int port = 9099; // default port
-        int sleepDelay = 10000; // default delay
-        Socket clientSocket = null;
-        ServerSocket socket = null;
+
+        int port = 9099; // Default port
+        int sleepDelay = 10000; // Default delay
 
         try {
             port = Integer.parseInt(args[0]);
@@ -200,17 +173,26 @@ class SockBaseServer {
             System.out.println("[Port|sleepDelay] must be an integer");
             System.exit(2);
         }
-        try {
-            socket = new ServerSocket(port);
-        } catch(Exception e) {
+
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Server is running on port " + port);
+
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                SockBaseServer server = new SockBaseServer(clientSocket, game);
+                Thread thread = new Thread(() -> {
+                    try {
+                        server.start();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                thread.start();
+            }
+        } catch (IOException e) {
             e.printStackTrace();
             System.exit(2);
         }
-
-        clientSocket = socket.accept();
-        SockBaseServer server = new SockBaseServer(clientSocket, game);
-        server.start();
-
     }
-}
 
+}
