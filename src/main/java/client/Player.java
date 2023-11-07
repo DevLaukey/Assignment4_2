@@ -11,6 +11,8 @@ public class Player implements Comparable<Player> {
     private int wins;
     private String name;
 
+    private int loginsCount;
+
     // constructor, getters, setters
     public Player(String name, int wins){
       this.wins = wins;
@@ -31,4 +33,21 @@ public class Player implements Comparable<Player> {
        public String toString() {
             return ("\n" +this.wins + ": " + this.name);
        }
+
+
+    public String getName() {
+        return  name;
+    }
+
+    public int getLogins() {
+        return loginsCount;
+    }
+
+    public void incrementLogins() {
+        loginsCount++;
+    }
+
+    public void incrementWins() {
+        wins++;
+    }
 }

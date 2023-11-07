@@ -199,6 +199,40 @@ public class Game {
     }
 
 
+    public String revealPortionOfImage(String currentImage) {
+        // Check if the number of tasks completed is at least 8
+        if (idx >= 8) {
+            // Calculate the number of characters to reveal (you can adjust this based on your factor)
+            int charactersToReveal = (int) (idxMax * 0.1); // For example, revealing 10% of the image
+
+            // Ensure that you don't reveal more characters than are available
+            charactersToReveal = Math.min(charactersToReveal, idxMax - idx);
+
+            // Update the hidden image with the revealed characters
+            StringBuilder updatedImage = new StringBuilder(currentImage);
+
+            for (int i = 0; i < charactersToReveal; i++) {
+                if (idx < idxMax) {
+                    int colNumber = idx % col;
+                    int rowNumber = idx / col;
+                    hidden[rowNumber][colNumber] = original[rowNumber][colNumber];
+                    idx++;
+
+                    // Update the corresponding characters in the updated image
+                    updatedImage.setCharAt((rowNumber * (col + 1)) + colNumber, original[rowNumber][colNumber]);
+                } else {
+                    break; // Stop if max replacements are reached
+                }
+            }
+
+            // Return the updated image
+            return updatedImage.toString();
+        } else {
+            // If less than 8 tasks are completed, return the current image without revealing any more
+            return currentImage;
+        }
+    }
+
     public boolean checkAnswer(String answer) {
         return validAnswers.containsValue(Integer.parseInt(answer));
     }

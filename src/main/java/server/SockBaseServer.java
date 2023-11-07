@@ -15,10 +15,21 @@ class SockBaseServer {
     Socket clientSocket = null;
     int port = 9099; // default port
     Game game;
-
+    private List<Leader> leaderboard = new ArrayList<>(); // Example leaderboard data structure
+    private int taskCount; // Keep track of the number of tasks completed
+    private List<Task> taskList; // List of tasks
+    private String currentImage; // The current state of the image
+    private int tasksToRevealImage = 8; // Number of tasks required to reveal a portion of the image
+    private Map<String, Integer> taskSolutions;
+    private String currentTask;
     public SockBaseServer(Socket sock, Game game){
         this.clientSocket = sock;
         this.game = game;
+
+        taskSolutions = new HashMap<>();
+        initializeTasks();
+        currentTask = getNextTask();
+        taskCount = 0;
         try {
             in = clientSocket.getInputStream();
             out = clientSocket.getOutputStream();
@@ -27,6 +38,26 @@ class SockBaseServer {
         }
     }
 
+    private String getNextTask() {
+        // Get the next task from the map
+        if (taskSolutions.isEmpty()) {
+            // No tasks left
+            return "No more tasks available. Game over!";
+        }
+
+        // Get the first task in the map
+        String nextTask = taskSolutions.keySet().iterator().next();
+        taskSolutions.remove(nextTask); // Remove the task from the map
+        return nextTask;
+    }
+
+    private void initializeTasks() {
+        taskSolutions.put("Name the 3rd prime number", 5);
+        taskSolutions.put("Name the 4th prime number", 7);
+        taskSolutions.put("Name the 5th prime number", 11);
+    }
+
+
     public void start() throws IOException {
         String name = "";
         System.out.println("Ready...");
@@ -34,6 +65,12 @@ class SockBaseServer {
             while (true) {
                 Request op = Request.parseDelimitedFrom(in);
                 String result = null;
+
+                if (op == null) {
+                    // The client disconnected unexpectedly
+                    System.out.println("Client disconnected.");
+                    break; // Exit the loop to close the connection
+                }
 
                 if (op.getOperationType() == Request.OperationType.NAME) {
                     name = op.getName();
@@ -44,52 +81,43 @@ class SockBaseServer {
                             .setHello("Hello " + name + " and welcome.")
                             .build();
                     response.writeDelimitedTo(out);
-                } else if (op.getOperationType() == Request.OperationType.NEW) {
+                }
+                else if (op.getOperationType() == Request.OperationType.NEW) {
                     // Start a new game and send the first question to the client
                     game.newGame();
-
-                    String question = "Name the 3rd prime number."; // Set the question
+                    currentTask = "Name the 3rd prime number"; // Set the current task
+                    currentImage = game.getImage();
+                    String question = currentTask;
                     Response response = Response.newBuilder()
                             .setResponseType(Response.ResponseType.TASK)
-                            .setImage(game.getImage())
+                            .setImage(currentImage)
                             .setTask(question)
                             .build();
                     response.writeDelimitedTo(out);
-
                     System.out.println("Task: " + response.getResponseType());
                     System.out.println("Image: \n" + response.getImage());
                     System.out.println("Task: \n" + response.getTask());
-
-                } else if (op.getOperationType() == Request.OperationType.LEADERBOARD) {
-                    System.out.println("IN LEADERBOARD");
-                    Response.Builder res = Response.newBuilder()
+                }
+                else if (op.getOperationType() == Request.OperationType.LEADERBOARD) {
+                    Response.Builder responseBuilder = Response.newBuilder()
                             .setResponseType(Response.ResponseType.LEADERBOARD);
 
-                    // building a leader entry
-                    Leader leader = Leader.newBuilder()
-                            .setName("name")
-                            .setWins(0)
-                            .setLogins(0)
-                            .build();
+                    if (leaderboard.isEmpty()) {
+                        responseBuilder.setMessage("Leaderboard is empty.");
+                    } else {
+                        List<Leader> sortedLeaderboard = new ArrayList<>(leaderboard);
+                        sortedLeaderboard.sort((leader1, leader2) -> leader2.getWins() - leader1.getWins());
 
-                    // building a leader entry
-                    Leader leader2 = Leader.newBuilder()
-                            .setName("name2")
-                            .setWins(1)
-                            .setLogins(1)
-                            .build();
-
-                    res.addLeaderboard(leader);
-                    res.addLeaderboard(leader2);
-
-                    Response response3 = res.build();
-
-                    response3.writeDelimitedTo(out);
-
-                    for (Leader lead : response3.getLeaderboardList()) {
-                        System.out.println(lead.getName() + ": " + lead.getWins());
+                        for (Leader leader : sortedLeaderboard) {
+                            responseBuilder.addLeaderboard(leader);
+                        }
                     }
-                } else if (op.getOperationType() == Request.OperationType.ANSWER) {
+
+                    Response response = responseBuilder.build();
+                    response.writeDelimitedTo(out);
+                }
+
+                else if (op.getOperationType() == Request.OperationType.ANSWER) {
                     String answer = op.getAnswer();
                     int userAnswer;
 
@@ -108,13 +136,13 @@ class SockBaseServer {
                         return;
                     }
 
-                    int correctAnswer = 5; // The 3rd prime number (prime numbers: 2, 3, 5, ...)
+                    // Get the correct answer for the current task
+                    Integer correctAnswer = taskSolutions.get(currentTask);
 
-                    if (userAnswer == correctAnswer) {
+                    if (correctAnswer != null && userAnswer == correctAnswer) {
                         // If the answer is correct, replace one character in the hidden image
-                        String updatedImage = game.replaceOneFourthCharacters(15);
+                        String updatedImage = game.replaceOneFourthCharacters(25);
 
-                        // Check if the game is won
                         if (game.getIdx() == game.getIdxMax()) {
                             // The game is won
                             Response wonResponse = Response.newBuilder()
@@ -123,6 +151,9 @@ class SockBaseServer {
                                     .setMessage("Congratulations! You've won the game.")
                                     .build();
                             wonResponse.writeDelimitedTo(out);
+
+                            // Add the player to the leaderboard
+                            updateLeaderboard(name);
                         } else {
                             // The game is not yet won, send TASK response with the updated image
                             String newQuestion = "Name the 4th prime number."; // Set a new question
@@ -139,13 +170,17 @@ class SockBaseServer {
                         Response taskResponse = Response.newBuilder()
                                 .setResponseType(Response.ResponseType.TASK)
                                 .setImage(game.getImage())
-                                .setTask("Name the 3rd prime number.")
+                                .setTask(currentTask)
                                 .setEval(false)
                                 .setMessage("Incorrect answer. Try again.")
                                 .build();
                         taskResponse.writeDelimitedTo(out);
                     }
-                } else if (op.getOperationType() == Request.OperationType.QUIT) {
+                }
+
+
+
+                else if (op.getOperationType() == Request.OperationType.QUIT) {
                     // Handle QUIT request
                     // Exit the while loop to close the connection
                     break;
@@ -167,14 +202,61 @@ class SockBaseServer {
         }
     }
 
-//    private boolean checkAnswer(String answer) {
-//        try {
-//            int ans = Integer.parseInt(answer);
-//            return ans == 4; // Check if the answer is correct (e.g., 2 + 2 = 4)
-//        } catch (NumberFormatException e) {
-//            return false; // Invalid answer
-//        }
-//    }
+    private void updateLeaderboard(String playerName) {
+        // Search for the player in the leaderboard
+        for (Leader leader : leaderboard) {
+            if (leader.getName().equals(playerName)) {
+                // Update the wins count for the player
+                int wins = leader.getWins() + 1;
+                leader = Leader.newBuilder()
+                        .setName(playerName)
+                        .setWins(wins)
+                        .setLogins(leader.getLogins())
+                        .build();
+                return;
+            }
+        }
+
+        // If the player is not in the leaderboard, add a new entry
+        Leader newLeader = Leader.newBuilder()
+                .setName(playerName)
+                .setWins(1)
+                .setLogins(1)
+                .build();
+        leaderboard.add(newLeader);
+    }
+
+    private void sendNewTask() throws IOException {
+        Response response = Response.newBuilder()
+                .setResponseType(Response.ResponseType.TASK)
+                .setImage(currentImage)
+                .setTask(currentTask)
+                .build();
+        response.writeDelimitedTo(out);
+    }
+
+    // Implement the checkAnswer method to validate the user's answer
+    private boolean checkAnswer(String answer) {
+        try {
+            int userAnswer = Integer.parseInt(answer);
+
+            System.out.println("curre"+currentTask);
+            // Get the correct answer for the current task
+            Integer correctAnswer = taskSolutions.get(currentTask);
+
+            System.out.println(correctAnswer);
+            System.out.println(userAnswer);
+            // Check if the user's answer is correct for the current task
+            if (correctAnswer != null && userAnswer == correctAnswer) {
+                return true;
+            } else {
+                return false; // Incorrect answer
+            }
+        } catch (NumberFormatException e) {
+            return false; // Invalid answer format
+        }
+    }
+
 
     public static void writeToLog(String name, Message message) {
         try {
@@ -245,4 +327,21 @@ class SockBaseServer {
         }
     }
 
+}
+ class Task {
+    private String task;
+    private int answer;
+
+    public Task(String task, int answer) {
+        this.task = task;
+        this.answer = answer;
+    }
+
+    public String getTask() {
+        return task;
+    }
+
+    public int getAnswer() {
+        return answer;
+    }
 }

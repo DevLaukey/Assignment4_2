@@ -89,12 +89,18 @@ class SockBaseClient {
                         break;
                     }
 
-                    // Check for errors
-                    if (response.getResponseType() == Response.ResponseType.ERROR) {
-                        System.out.println("Error: " + response.getMessage());
-                    } else {
-                        displayLeaderboard(response.getLeaderboardList());
-                    }
+
+                        System.out.println("Leaderboard:");
+                        System.out.println(response);
+                        List<Leader> leaderboard = response.getLeaderboardList();
+
+                        for (Leader leader : leaderboard) {
+
+                                System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
+
+
+                        }
+
                 } else if (choice.equals("2")) {
                     // Send the NEW request to start a game
                     Request newGameRequest = Request.newBuilder()
@@ -113,7 +119,7 @@ class SockBaseClient {
                     }
 
                     // Handle the game
-                    handleGame(in, out, host, port);
+                    handleGame(in, out);
                 } else if (choice.equals("3")) {
                     // Send the QUIT request to exit the game
                     Request quitRequest = Request.newBuilder()
@@ -146,11 +152,9 @@ class SockBaseClient {
         }
     }
 
-    private static void handleGame(InputStream in, OutputStream out, String host, int port) {
+    private static void handleGame(InputStream in, OutputStream out) {
         try {
-            boolean gameWon = false;
-
-            while (!gameWon) {
+            while (true) {
                 // Handle the game logic
                 // Send ANSWER request with the user's answer
                 System.out.print("Enter your answer: ");
@@ -172,32 +176,50 @@ class SockBaseClient {
                 // Check for errors
                 if (response.getResponseType() == Response.ResponseType.ERROR) {
                     System.out.println("Error: " + response.getMessage());
-                } else if (response.getResponseType() == Response.ResponseType.WON) {
+                }
+
+                if (response.getResponseType() == Response.ResponseType.WON) {
                     System.out.println("Congratulations! You've won.");
                     System.out.println("Winning Message: " + response.getMessage());
-                    gameWon = true; // Set gameWon to true
+                    return;
+                    // You may want to add any additional handling for a game win on the client side.
                 } else if (response.getResponseType() == Response.ResponseType.TASK) {
+                    System.out.println("Image: \n" + response.getImage());
+                    System.out.println("Task: " + response.getTask());
+                    // Handle the game logic for a new task
+                } else if (response.getResponseType() == Response.ResponseType.LEADERBOARD) {
+                    if (response.hasMessage()) {
+                        System.out.println("Leaderboard is empty: " + response.getMessage());
+                    } else {
+                        System.out.println("Leaderboard:");
+                        List<Leader> leaderboard = response.getLeaderboardList();
+                        for (Leader leader : leaderboard) {
+                            System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
+
+                        }
+                    }
+                }
+
+                else if (response.getResponseType() == Response.ResponseType.TASK) {
                     System.out.println("Image: \n" + response.getImage());
                     System.out.println("Task: " + response.getTask());
 
                     // Prompt the user for an answer and send it back to the server
+
                     answerRequest.writeDelimitedTo(out);
-                } else {
+                }
+                else {
                     System.out.println("Unknown response type.");
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        // If the game is won, return the user to the main menu
-        handleClientOperations(host, port);
     }
 
     private static void displayLeaderboard(List<Leader> leaderboard) {
-        System.out.println("Leaderboard:");
         for (Leader leader : leaderboard) {
-            System.out.println(leader.getName() + " - Wins: " + leader.getWins() + " - Logins: " + leader.getLogins());
+            System.out.println(leader.getName() + " - Wins: " + leader.getWins() + "\n");
         }
     }
 }
