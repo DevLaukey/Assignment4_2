@@ -161,7 +161,7 @@ public class Game {
     public String replaceOneFourthCharacters(int maxReplacements) {
         StringBuilder updatedImage = new StringBuilder(getImage());
 
-        int timesToReveal = Math.min(maxReplacements, idxMax / 4); // Calculate the number of times to reveal (one-fourth)
+        int timesToReveal = Math.min(maxReplacements, idxMax / 8); // Calculate the number of times to reveal (one-fourth)
 
         for (int i = 0; i < timesToReveal; i++) {
             if (idx < idxMax) {
@@ -179,6 +179,36 @@ public class Game {
 
         return updatedImage.toString();
     }
+
+    public String replaceCharacters() {
+        // Calculate the minimum fraction to reveal
+        double minFractionToReveal = 8.0 / idxMax;
+
+        // Ensure the fraction to reveal is at least the minimum
+        double fractionToReveal = Math.max(minFractionToReveal, 1.0);
+
+        // Calculate the number of times to reveal characters based on the fraction
+        int timesToReveal = (int) (idxMax * fractionToReveal);
+
+        StringBuilder updatedImage = new StringBuilder(getImage());
+
+        for (int i = 0; i < timesToReveal; i++) {
+            if (idx < idxMax) {
+                int colNumber = idx % col;
+                int rowNumber = idx / col;
+                hidden[rowNumber][colNumber] = original[rowNumber][colNumber];
+                idx++;
+
+                // Update the corresponding characters in the updated image
+                updatedImage.setCharAt((rowNumber * (col + 1)) + colNumber, original[rowNumber][colNumber]);
+            } else {
+                break; // Stop if the desired fraction of replacements is reached
+            }
+        }
+
+        return updatedImage.toString();
+    }
+
 
 
 

@@ -170,7 +170,7 @@ class SockBaseClient {
                 Response response = Response.parseDelimitedFrom(in);
 
                 if (response == null) {
-                    System.out.println("Error: Connection to the server was lost.");
+                    System.out.println("Connection to the server was lost.");
                     break;
                 }
 
