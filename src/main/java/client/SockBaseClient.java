@@ -9,6 +9,7 @@ import proto.ResponseProtos.*;
 
 class SockBaseClient {
     private static BufferedReader stdin;
+    public static boolean isExited = false;
 
     public static void main(String args[]) {
         int port = 9099; // default port
@@ -66,12 +67,14 @@ class SockBaseClient {
 
             while (true) {
 
-                // Display menu options
-                System.out.println("Select an option:");
-                System.out.println("1 - View Leaderboard");
-                System.out.println("2 - Start a New Game");
-                System.out.println("3 - Quit");
+                if(isExited == false) {
 
+                    // Display menu options
+                    System.out.println("Select an option:");
+                    System.out.println("1 - View Leaderboard");
+                    System.out.println("2 - Start a New Game");
+                    System.out.println("3 - Quit");
+                }
                 // Read user's choice
                 String choice = stdin.readLine();
 
@@ -160,6 +163,30 @@ class SockBaseClient {
                 // Send ANSWER request with the user's answer
                 System.out.print("Enter your answer: ");
                 String answer = stdin.readLine();
+
+                if (answer.equalsIgnoreCase("exit")) {
+                    // Send the QUIT request to exit the game
+                    Request quitRequest = Request.newBuilder()
+                            .setOperationType(Request.OperationType.QUIT)
+                            .build();
+                    quitRequest.writeDelimitedTo(out);
+
+                    // Receive the goodbye message
+                    Response response = Response.parseDelimitedFrom(in);
+                    isExited = true;
+
+                    if (response == null) {
+                        System.out.println("Connection to the server was lost.");
+                    } else if (response.getResponseType() == Response.ResponseType.ERROR) {
+                        System.out.println("Error: " + response.getMessage());
+                    } else {
+                        System.out.println("Goodbye! " + response.getMessage());
+                    }
+
+                    return; // Exit the game loop
+                }
+
+                else{
                 Request answerRequest = Request.newBuilder()
                         .setOperationType(Request.OperationType.ANSWER)
                         .setAnswer(answer)
@@ -199,20 +226,18 @@ class SockBaseClient {
 
                         }
                     }
-                }
-
-                else if (response.getResponseType() == Response.ResponseType.TASK) {
+                } else if (response.getResponseType() == Response.ResponseType.TASK) {
                     System.out.println("Image: \n" + response.getImage());
                     System.out.println("Task: " + response.getTask());
 
                     // Prompt the user for an answer and send it back to the server
 
                     answerRequest.writeDelimitedTo(out);
-                }
-                else {
+                } else {
                     System.out.println("Unknown response type.");
                 }
             }
+        }
         } catch (IOException e) {
             e.printStackTrace();
         }
