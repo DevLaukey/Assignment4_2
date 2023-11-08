@@ -157,7 +157,7 @@ class SockBaseServer {
                             // The game is won
                             Response wonResponse = Response.newBuilder()
                                     .setResponseType(Response.ResponseType.WON)
-                                    .setImage(updatedImage)
+                                    .setImage(game.getImage())
                                     .setMessage("Congratulations! You've won the game.")
                                     .build();
                             wonResponse.writeDelimitedTo(out);
