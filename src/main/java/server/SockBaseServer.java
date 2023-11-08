@@ -138,7 +138,7 @@ class SockBaseServer {
                         Response invalidAnswerResponse = Response.newBuilder()
                                 .setResponseType(Response.ResponseType.TASK)
                                 .setImage(game.getImage())
-                                .setTask("Name the 3rd prime number.")
+                                .setTask("Name a prime number.")
                                 .setEval(false)
                                 .setMessage("Invalid answer format. Please enter a number.")
                                 .build();
@@ -146,12 +146,12 @@ class SockBaseServer {
                         return;
                     }
 
-                    // Get the correct answer for the current task
-                    Integer correctAnswer = taskSolutions.get(currentTask);
+                    // Get the correct answer for the current task (prime numbers)
+                    List<Integer> primeNumbers = Arrays.asList(2, 3, 5, 7, 11, 13, 17, 19); // Add more prime numbers as needed
 
-                    if (correctAnswer != null && userAnswer == correctAnswer) {
+                    if (primeNumbers.contains(userAnswer)) {
                         // If the answer is correct, replace one character in the hidden image
-                        String updatedImage = game.replaceOneFourthCharacters(25);
+                        String updatedImage = game.replaceOneFourthCharacters(25); // Replace one character
 
                         if (game.getIdx() == game.getIdxMax()) {
                             // The game is won
@@ -168,7 +168,7 @@ class SockBaseServer {
                             saveLeaderboardToFile();
                         } else {
                             // The game is not yet won, send TASK response with the updated image
-                            String newQuestion = "Name the 3rd prime number."; // Set a new question
+                            String newQuestion = "Name a prime number below 20."; // Set a new question
                             Response taskResponse = Response.newBuilder()
                                     .setResponseType(Response.ResponseType.TASK)
                                     .setImage(updatedImage)
@@ -182,7 +182,7 @@ class SockBaseServer {
                         Response taskResponse = Response.newBuilder()
                                 .setResponseType(Response.ResponseType.TASK)
                                 .setImage(game.getImage())
-                                .setTask(currentTask)
+                                .setTask("Name a prime number.")
                                 .setEval(false)
                                 .setMessage("Incorrect answer. Try again.")
                                 .build();
