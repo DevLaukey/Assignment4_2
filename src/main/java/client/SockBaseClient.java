@@ -65,6 +65,7 @@ class SockBaseClient {
 
 
             while (true) {
+
                 // Display menu options
                 System.out.println("Select an option:");
                 System.out.println("1 - View Leaderboard");

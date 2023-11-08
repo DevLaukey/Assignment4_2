@@ -5,6 +5,11 @@ import java.io.*;
 import java.util.*;
 import proto.RequestProtos.*;
 import proto.ResponseProtos.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 
 class SockBaseServer {
     static String logFilename = "logs.txt";
@@ -22,6 +27,8 @@ class SockBaseServer {
     private int tasksToRevealImage = 8; // Number of tasks required to reveal a portion of the image
     private Map<String, Integer> taskSolutions;
     private String currentTask;
+    private static final String LEADERBOARD_FILE = "leaderboard.txt";
+
     public SockBaseServer(Socket sock, Game game){
         this.clientSocket = sock;
         this.game = game;
@@ -30,6 +37,8 @@ class SockBaseServer {
         initializeTasks();
         currentTask = getNextTask();
         taskCount = 0;
+        // Load the leaderboard from the file
+        loadLeaderboardFromFile();
         try {
             in = clientSocket.getInputStream();
             out = clientSocket.getOutputStream();
@@ -80,6 +89,7 @@ class SockBaseServer {
                             .setResponseType(Response.ResponseType.HELLO)
                             .setHello("Hello " + name + " and welcome.")
                             .build();
+                    updateLeaderboard(name, false);
                     response.writeDelimitedTo(out);
                 }
                 else if (op.getOperationType() == Request.OperationType.NEW) {
@@ -153,10 +163,12 @@ class SockBaseServer {
                             wonResponse.writeDelimitedTo(out);
 
                             // Add the player to the leaderboard
-                            updateLeaderboard(name);
+                            updateLeaderboard(name, true);
+                            // Save the updated leaderboard to the file
+                            saveLeaderboardToFile();
                         } else {
                             // The game is not yet won, send TASK response with the updated image
-                            String newQuestion = "Name the 4th prime number."; // Set a new question
+                            String newQuestion = "Name the 3rd prime number."; // Set a new question
                             Response taskResponse = Response.newBuilder()
                                     .setResponseType(Response.ResponseType.TASK)
                                     .setImage(updatedImage)
@@ -202,29 +214,83 @@ class SockBaseServer {
         }
     }
 
-    private void updateLeaderboard(String playerName) {
+
+    private void updateLeaderboard(String playerName, boolean isWin) {
         // Search for the player in the leaderboard
-        for (Leader leader : leaderboard) {
+        Leader player = null;
+        int playerIndex = -1;
+        for (int i = 0; i < leaderboard.size(); i++) {
+            Leader leader = leaderboard.get(i);
             if (leader.getName().equals(playerName)) {
-                // Update the wins count for the player
-                int wins = leader.getWins() + 1;
-                leader = Leader.newBuilder()
-                        .setName(playerName)
-                        .setWins(wins)
-                        .setLogins(leader.getLogins())
-                        .build();
-                return;
+                player = leader;
+                playerIndex = i;
+                break;
             }
         }
 
-        // If the player is not in the leaderboard, add a new entry
-        Leader newLeader = Leader.newBuilder()
-                .setName(playerName)
-                .setWins(1)
-                .setLogins(1)
-                .build();
-        leaderboard.add(newLeader);
+        if (player == null) {
+            // If the player is not in the leaderboard, create a new entry
+            int wins = 0;
+            int logins = 1;
+            player = Leader.newBuilder()
+                    .setName(playerName)
+                    .setWins(wins)
+                    .setLogins(logins)
+                    .build();
+            leaderboard.add(player);
+        } else {
+            // Increment the login count
+            int logins = player.getLogins() + 1;
+            Leader updatedPlayer = Leader.newBuilder()
+                    .mergeFrom(player)
+                    .setLogins(logins)
+                    .build();
+            leaderboard.set(playerIndex, updatedPlayer);
+
+            // Update the wins count for the player if isWin is true
+            if (isWin) {
+                int wins = player.getWins() + 1;
+                updatedPlayer = Leader.newBuilder()
+                        .mergeFrom(updatedPlayer)
+                        .setWins(wins)
+                        .build();
+                leaderboard.set(playerIndex, updatedPlayer);
+            }
+        }
+
+        // Save the updated leaderboard to the file
+        saveLeaderboardToFile();
     }
+
+    private void loadLeaderboardFromFile() {
+        File leaderboardFile = new File(LEADERBOARD_FILE);
+        if (leaderboardFile.exists()) {
+            try (FileInputStream fileInputStream = new FileInputStream(leaderboardFile)) {
+                leaderboard.clear();
+
+                while (true) {
+                    Leader leader = Leader.parseDelimitedFrom(fileInputStream);
+                    if (leader == null) {
+                        break;
+                    }
+                    leaderboard.add(leader);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void saveLeaderboardToFile() {
+        try (FileOutputStream fileOutputStream = new FileOutputStream(LEADERBOARD_FILE)) {
+            for (Leader leader : leaderboard) {
+                leader.writeDelimitedTo(fileOutputStream);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private void sendNewTask() throws IOException {
         Response response = Response.newBuilder()
