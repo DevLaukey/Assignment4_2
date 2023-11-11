@@ -176,7 +176,7 @@ class SockBaseClient {
                     isExited = true;
 
                     if (response == null) {
-                        System.out.println("Goodbye! Client Disconnected.");
+                        System.out.println("Connection to the server was lost.");
                     } else if (response.getResponseType() == Response.ResponseType.ERROR) {
                         System.out.println("Error: " + response.getMessage());
                     } else {
@@ -208,6 +208,8 @@ class SockBaseClient {
 
                 if (response.getResponseType() == Response.ResponseType.WON) {
                     System.out.println("Congratulations! You've won.");
+                    System.out.println("Image: \n" + response.getImage());
+
                     System.out.println("Winning Message: " + response.getMessage());
                     return;
                     // You may want to add any additional handling for a game win on the client side.
