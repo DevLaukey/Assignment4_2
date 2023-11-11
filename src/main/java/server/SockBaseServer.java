@@ -21,10 +21,10 @@ class SockBaseServer {
     int port = 9099; // default port
     Game game;
     private List<Leader> leaderboard = new ArrayList<>(); // Example leaderboard data structure
-    private int taskCount; // Keep track of the number of tasks completed
     private List<Task> taskList; // List of tasks
+    private Random random; // Random number generator
+
     private String currentImage; // The current state of the image
-    private int tasksToRevealImage = 8; // Number of tasks required to reveal a portion of the image
     private Map<String, Integer> taskSolutions;
     private String currentTask;
     private static final String LEADERBOARD_FILE = "leaderboard.txt";
@@ -36,8 +36,8 @@ class SockBaseServer {
         taskSolutions = new HashMap<>();
         initializeTasks();
         currentTask = getNextTask();
-        taskCount = 0;
-        // Load the leaderboard from the file
+        taskList = new ArrayList<>();
+        random = new Random();
         loadLeaderboardFromFile();
         try {
             in = clientSocket.getInputStream();
@@ -95,8 +95,8 @@ class SockBaseServer {
                 else if (op.getOperationType() == Request.OperationType.NEW) {
                     // Start a new game and send the first question to the client
                     game.newGame();
-                    currentTask = "Name the 3rd prime number"; // Set the current task
                     currentImage = game.getImage();
+                    currentTask = getNextTask(); // Get a new random task
                     String question = currentTask;
                     Response response = Response.newBuilder()
                             .setResponseType(Response.ResponseType.TASK)
@@ -130,7 +130,19 @@ class SockBaseServer {
                 else if (op.getOperationType() == Request.OperationType.ANSWER) {
                     String answer = op.getAnswer();
                     int userAnswer;
-
+                    // Check if the answer is a valid number
+                    if (!isNumeric(answer)) {
+                        // Invalid answer format
+                        Response invalidAnswerResponse = Response.newBuilder()
+                                .setResponseType(Response.ResponseType.TASK)
+                                .setImage(game.getImage())
+                                .setTask("Name a prime number.")
+                                .setEval(false)
+                                .setMessage("Invalid answer format. Please enter a number.")
+                                .build();
+                        invalidAnswerResponse.writeDelimitedTo(out);
+                        return;
+                    }
                     try {
                         userAnswer = Integer.parseInt(answer);
                     } catch (NumberFormatException e) {
@@ -214,6 +226,15 @@ class SockBaseServer {
         }
     }
 
+    // Check if a string is a valid number
+    private boolean isNumeric(String str) {
+        try {
+            Integer.parseInt(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 
     private void updateLeaderboard(String playerName, boolean isWin) {
         // Search for the player in the leaderboard

@@ -176,7 +176,7 @@ class SockBaseClient {
                     isExited = true;
 
                     if (response == null) {
-                        System.out.println("Connection to the server was lost.");
+                        System.out.println("Goodbye! Client Disconnected.");
                     } else if (response.getResponseType() == Response.ResponseType.ERROR) {
                         System.out.println("Error: " + response.getMessage());
                     } else {
