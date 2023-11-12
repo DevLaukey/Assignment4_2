@@ -161,7 +161,7 @@ class SockBaseClient {
             while (true) {
                 // Handle the game logic
                 // Send ANSWER request with the user's answer
-                System.out.print("Enter your answer: ");
+                System.out.print("Enter your answer (numeric characters only): ");
                 String answer = stdin.readLine();
 
                 if (answer.equalsIgnoreCase("exit")) {
@@ -184,60 +184,55 @@ class SockBaseClient {
                     }
 
                     return; // Exit the game loop
-                }
-
-                else{
-                Request answerRequest = Request.newBuilder()
-                        .setOperationType(Request.OperationType.ANSWER)
-                        .setAnswer(answer)
-                        .build();
-                answerRequest.writeDelimitedTo(out);
-
-                // Receive the game response
-                Response response = Response.parseDelimitedFrom(in);
-
-                if (response == null) {
-                    System.out.println("Connection to the server was lost.");
-                    break;
-                }
-
-                // Check for errors
-                if (response.getResponseType() == Response.ResponseType.ERROR) {
-                    System.out.println("Error: " + response.getMessage());
-                }
-
-                if (response.getResponseType() == Response.ResponseType.WON) {
-                    System.out.println("Congratulations! You've won.");
-                    System.out.println("Winning Message: " + response.getMessage());
-                    return;
-                    // You may want to add any additional handling for a game win on the client side.
-                } else if (response.getResponseType() == Response.ResponseType.TASK) {
-                    System.out.println("Image: \n" + response.getImage());
-                    System.out.println("Task: " + response.getTask());
-                    // Handle the game logic for a new task
-                } else if (response.getResponseType() == Response.ResponseType.LEADERBOARD) {
-                    if (response.hasMessage()) {
-                        System.out.println("Leaderboard is empty: " + response.getMessage());
-                    } else {
-                        System.out.println("Leaderboard:");
-                        List<Leader> leaderboard = response.getLeaderboardList();
-                        for (Leader leader : leaderboard) {
-                            System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
-
-                        }
-                    }
-                } else if (response.getResponseType() == Response.ResponseType.TASK) {
-                    System.out.println("Image: \n" + response.getImage());
-                    System.out.println("Task: " + response.getTask());
-
-                    // Prompt the user for an answer and send it back to the server
-
-                    answerRequest.writeDelimitedTo(out);
                 } else {
-                    System.out.println("Unknown response type.");
+                    if (!answer.matches("\\d+")) {
+                        System.out.println("Invalid input. Please enter numeric characters only.");
+                        continue; // Prompt the user again
+                    }
+
+                    Request answerRequest = Request.newBuilder()
+                            .setOperationType(Request.OperationType.ANSWER)
+                            .setAnswer(answer)
+                            .build();
+                    answerRequest.writeDelimitedTo(out);
+
+                    // Receive the game response
+                    Response response = Response.parseDelimitedFrom(in);
+
+                    if (response == null) {
+                        System.out.println("Connection to the server was lost.");
+                        break;
+                    }
+
+                    // Check for errors
+                    if (response.getResponseType() == Response.ResponseType.ERROR) {
+                        System.out.println("Error: " + response.getMessage());
+                    }
+
+                    if (response.getResponseType() == Response.ResponseType.WON) {
+                        System.out.println("Congratulations! You've won.");
+                        System.out.println("Winning Message: " + response.getMessage());
+                        return;
+                        // You may want to add any additional handling for a game win on the client side.
+                    } else if (response.getResponseType() == Response.ResponseType.TASK) {
+                        System.out.println("Image: \n" + response.getImage());
+                        System.out.println("Task: " + response.getTask());
+                        // Handle the game logic for a new task
+                    } else if (response.getResponseType() == Response.ResponseType.LEADERBOARD) {
+                        if (response.hasMessage()) {
+                            System.out.println("Leaderboard is empty: " + response.getMessage());
+                        } else {
+                            System.out.println("Leaderboard:");
+                            List<Leader> leaderboard = response.getLeaderboardList();
+                            for (Leader leader : leaderboard) {
+                                System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
+                            }
+                        }
+                    } else {
+                        System.out.println("Unknown response type.");
+                    }
                 }
             }
-        }
         } catch (IOException e) {
             e.printStackTrace();
         }

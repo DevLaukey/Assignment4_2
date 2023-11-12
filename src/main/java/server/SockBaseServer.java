@@ -130,19 +130,20 @@ class SockBaseServer {
                 else if (op.getOperationType() == Request.OperationType.ANSWER) {
                     String answer = op.getAnswer();
                     int userAnswer;
-                    // Check if the answer is a valid number
+
                     if (!isNumeric(answer)) {
                         // Invalid answer format
                         Response invalidAnswerResponse = Response.newBuilder()
                                 .setResponseType(Response.ResponseType.TASK)
                                 .setImage(game.getImage())
-                                .setTask("Name a prime number.")
+                                .setTask("Invalid answer format. Please enter a number.")
                                 .setEval(false)
                                 .setMessage("Invalid answer format. Please enter a number.")
                                 .build();
                         invalidAnswerResponse.writeDelimitedTo(out);
                         return;
                     }
+
                     try {
                         userAnswer = Integer.parseInt(answer);
                     } catch (NumberFormatException e) {
