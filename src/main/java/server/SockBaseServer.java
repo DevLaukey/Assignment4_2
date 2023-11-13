@@ -416,7 +416,7 @@ class SockBaseServer {
     }
 
 }
- class Task {
+class Task {
     private String task;
     private int answer;
 
