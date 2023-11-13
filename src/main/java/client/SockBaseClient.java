@@ -94,16 +94,16 @@ class SockBaseClient {
                     }
 
 
-                        System.out.println("Leaderboard:");
-                        System.out.println(response);
-                        List<Leader> leaderboard = response.getLeaderboardList();
+                    System.out.println("Leaderboard:");
+                    System.out.println(response);
+                    List<Leader> leaderboard = response.getLeaderboardList();
 
-                        for (Leader leader : leaderboard) {
+                    for (Leader leader : leaderboard) {
 
-                                System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
+                        System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
 
 
-                        }
+                    }
 
                 } else if (choice.equals("2")) {
                     // Send the NEW request to start a game
@@ -161,7 +161,7 @@ class SockBaseClient {
             while (true) {
                 // Handle the game logic
                 // Send ANSWER request with the user's answer
-                System.out.print("Enter your answer (numeric characters only): ");
+                System.out.print("Enter your answer: ");
                 String answer = stdin.readLine();
 
                 if (answer.equalsIgnoreCase("exit")) {
@@ -184,12 +184,13 @@ class SockBaseClient {
                     }
 
                     return; // Exit the game loop
-                } else {
+                }
+
+                else{
                     if (!answer.matches("\\d+")) {
                         System.out.println("Invalid input. Please enter numeric characters only.");
                         continue; // Prompt the user again
                     }
-
                     Request answerRequest = Request.newBuilder()
                             .setOperationType(Request.OperationType.ANSWER)
                             .setAnswer(answer)
@@ -211,6 +212,8 @@ class SockBaseClient {
 
                     if (response.getResponseType() == Response.ResponseType.WON) {
                         System.out.println("Congratulations! You've won.");
+                        System.out.println("Image: \n" + response.getImage());
+
                         System.out.println("Winning Message: " + response.getMessage());
                         return;
                         // You may want to add any additional handling for a game win on the client side.
@@ -226,8 +229,16 @@ class SockBaseClient {
                             List<Leader> leaderboard = response.getLeaderboardList();
                             for (Leader leader : leaderboard) {
                                 System.out.println("Name: " + leader.getName() + " " + "Wins: " + leader.getWins());
+
                             }
                         }
+                    } else if (response.getResponseType() == Response.ResponseType.TASK) {
+                        System.out.println("Image: \n" + response.getImage());
+                        System.out.println("Task: " + response.getTask());
+
+                        // Prompt the user for an answer and send it back to the server
+
+                        answerRequest.writeDelimitedTo(out);
                     } else {
                         System.out.println("Unknown response type.");
                     }
